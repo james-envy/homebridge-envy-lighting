@@ -1,0 +1,90 @@
+{
+  "pluginAlias": "EnvyLighting",
+  "pluginType": "platform",
+  "singular": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "lighting_address": {
+        "title": "Lighting Address",
+        "type": "string",
+        "required": true,
+        "default": "c-bus; gc=192.168.0.240; application = 56"
+      },
+      "lighting_table": {
+        "title": "Lighting Scene",
+        "type": "array",
+        "items": {
+          "title": "",
+          "type": "object",
+          "properties": {
+            "name": {
+              "title": "Name",
+              "type": "string",
+              "required": true
+            },
+            "device_type": {
+              "title": "Device Type",
+              "type": "string",
+              "required": true,
+              "oneOf": [
+                {
+                  "title": "Switch",
+                  "enum": [
+                    "Switch"
+                  ]
+                },
+                {
+                  "title": "Dimmer",
+                  "enum": [
+                    "Dimmer"
+                  ]
+                }
+              ]
+            },
+            "address": {
+              "title": "Address",
+              "type": "string",
+              "required": true
+            }
+          }
+        }
+      }
+    }
+  },
+  "layout": [
+    "lighting_address",
+    {
+      "type": "section",
+      "title": "Lighting Table",
+      "items": [
+        {
+          "key": "lighting_table",
+          "type": "array",
+          "notitle": true,
+          "items": [
+            {
+              "type": "div",
+              "displayFlex": true,
+              "flex-direction": "row",
+              "items": [
+                {
+                  "key": "lighting_table[].name",
+                  "flex": "1 1 60%"
+                },
+                {
+                  "key": "lighting_table[].device_type",
+                  "flex": "1 1 20%"
+                },
+                {
+                  "key": "lighting_table[].address",
+                  "flex": "1 1 20%"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
