@@ -1,16 +1,16 @@
 {
-  "private": true,
+  "private": false,
   "displayName": "Envy Lighting",
   "name": "homebridge-envy-lighting",
-  "version": "1.0.0",
+  "version": "1.0.57",
   "description": "A short description about what your plugin does.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git://github.com/USERNAME/GITHUB_PROJECT_NAME.git"
+    "url": "git://github.com/james-envy/homebridge-envy-lighting.git"
   },
   "bugs": {
-    "url": "https://github.com/USERNAME/GITHUB_PROJECT_NAME/issues"
+    "url": "https://github.com/james-envy/homebridge-envy-lighting/issues"
   },
   "engines": {
     "node": ">=14.18.1",
