@@ -2,7 +2,7 @@ import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 
 import { ExampleHomebridgePlatform } from '../platform.js';
 
-export class SwitchAccessory {
+export class ToggleAccessory {
   private service: Service;
 
   private lighting_state = {
@@ -23,7 +23,7 @@ export class SwitchAccessory {
       .setCharacteristic(this.platform.Characteristic.Model, 'Default-Model')
       .setCharacteristic(this.platform.Characteristic.SerialNumber, 'Default-Serial');
 
-    this.service = this.accessory.getService(this.platform.Service.Lightbulb) || this.accessory.addService(this.platform.Service.Lightbulb);
+    this.service = this.accessory.getService(this.platform.Service.Switch) || this.accessory.addService(this.platform.Service.Switch);
 
     this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
 

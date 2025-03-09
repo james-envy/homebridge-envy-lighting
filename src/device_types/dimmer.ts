@@ -1,6 +1,6 @@
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 
-import { ExampleHomebridgePlatform } from '../platform';
+import { ExampleHomebridgePlatform } from '../platform.js';
 
 export class DimmerAccessory {
   private service: Service;

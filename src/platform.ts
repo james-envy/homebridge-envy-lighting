@@ -1,8 +1,11 @@
-import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic } from 'homebridge';
+import type { API, Characteristic, DynamicPlatformPlugin, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 
-import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
-import { SwitchAccessory } from './device_types/switch';
-import { DimmerAccessory } from './device_types/dimmer';
+import { DimmerAccessory } from './device_types/dimmer.js';
+import { SwitchAccessory } from './device_types/switch.js';
+import { ToggleAccessory } from './device_types/toggle.js';
+import { SimpleThermostatAccessory } from './device_types/simple_thermostat.js';
+import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
+
 import { Socket } from 'net';
 
 /**
@@ -11,11 +14,11 @@ import { Socket } from 'net';
  * parse the user config and discover/register accessories with Homebridge.
  */
 export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
-  public readonly Service: typeof Service = this.api.hap.Service;
-  public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
+  public readonly Service: typeof Service;
+  public readonly Characteristic: typeof Characteristic;
 
   // this is used to track restored cached accessories
-  public readonly accessories: PlatformAccessory[] = [];
+  public readonly accessories: Map<string, PlatformAccessory> = new Map();
 
   socket = new Socket;
   socket_buffer = '';
@@ -23,14 +26,21 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
   queue : string[] = [];
   queue_ready = false;
 
-  switches = {};
   dimmers = {};
+  switches = {};
+  toggles = {};
+  simple_thermostats = {};
+
+  thermostat_map: Map<string, string> = new Map();
 
   constructor(
-    public readonly log: Logger,
+    public readonly log: Logging,
     public readonly config: PlatformConfig,
     public readonly api: API,
   ) {
+    this.Service = api.hap.Service;
+    this.Characteristic = api.hap.Characteristic;
+
     this.log.debug('Finished initializing platform:', this.config.name);
 
     this.socket.setEncoding('utf8');
@@ -92,11 +102,23 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
           if (this.switches[switch_matched[2]] !== undefined) {
             this.switches[switch_matched[2]].updateOn(true);
           }
+          if (this.toggles[switch_matched[2]] !== undefined) {
+            this.toggles[switch_matched[2]].updateOn(true);
+          }
+          if (this.simple_thermostats[switch_matched[2]] !== undefined) {
+            this.simple_thermostats[switch_matched[2]].updateOn(true);
+          }
         }
         if (switch_matched[1] === 'Off') {
           //this.log.error('switch_off', switch_matched[2]);
           if (this.switches[switch_matched[2]] !== undefined) {
             this.switches[switch_matched[2]].updateOn(false);
+          }
+          if (this.toggles[switch_matched[2]] !== undefined) {
+            this.toggles[switch_matched[2]].updateOn(false);
+          }
+          if (this.simple_thermostats[switch_matched[2]] !== undefined) {
+            this.simple_thermostats[switch_matched[2]].updateOn(false);
           }
         }
       }
@@ -105,6 +127,18 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
       if (pong_matched !== null) {
         //this.log.error('ping');
         this.enqueue('Lighting_controller::Pong()');
+      }
+      //Measurement(Device+Channel = 0+3, Units = 0, Value = 23.31)
+      const measurement_matcher = /Measurement\(Device\+Channel = (.*), Units = (.*), Value = (.*)\)/;
+      const measurement_matched = measurement_matcher.exec(line);
+      if (measurement_matched !== null) {
+        //this.log.error('measurement', measurement_matched[1], measurement_matched[2], measurement_matched[3]);
+        const a = this.thermostat_map[measurement_matched[1]];
+        if (a !== undefined) {
+          if (this.simple_thermostats[a] !== undefined) {
+            this.simple_thermostats[a].update_thermostat(parseFloat(measurement_matched[3]));
+          }
+        }
       }
 
       //this.log.error('remaining "', this.socket_buffer.substring(index + 1), '"');
@@ -137,11 +171,17 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
   on_ready() {
     this.log.error('ready');
     this.enqueue('Lighting_controller::Configure(Lighting_Address = ' + this.config.lighting_address + ')');
+    for (const address in this.dimmers) {
+      this.enqueue('Lighting_controller::ConfigureDimmer(Address1 = ' + address + ')');
+    }
     for (const address in this.switches) {
       this.enqueue('Lighting_controller::ConfigureSwitch(Address1 = ' + address + ')');
     }
-    for (const address in this.dimmers) {
-      this.enqueue('Lighting_controller::ConfigureDimmer(Address1 = ' + address + ')');
+    for (const address in this.toggles) {
+      this.enqueue('Lighting_controller::ConfigureSwitch(Address1 = ' + address + ')');
+    }
+    for (const address in this.simple_thermostats) {
+      this.enqueue('Lighting_controller::ConfigureSwitch(Address1 = ' + address + ')');
     }
     this.on_drain();
   }
@@ -159,7 +199,7 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
     this.log.info('Loading accessory from cache:', accessory.displayName);
 
     // add the restored accessory to the accessories cache so we can track if it has already been registered
-    this.accessories.push(accessory);
+    this.accessories.set(accessory.UUID, accessory);
   }
 
   /**
@@ -182,7 +222,7 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
 
       // see if an accessory with the same uuid has already been registered and restored from
       // the cached devices we stored in the `configureAccessory` method above
-      const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
+      const existingAccessory = this.accessories.get(uuid);
 
       if (existingAccessory) {
         // the accessory already exists
@@ -194,11 +234,17 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
 
         // create the accessory handler for the restored accessory
         // this is imported from `platformAccessory.ts`
+        if (device.device_type === 'Dimmer') {
+          this.dimmers[device.address] = new DimmerAccessory(this, existingAccessory);
+        }
         if (device.device_type === 'Switch') {
           this.switches[device.address] = new SwitchAccessory(this, existingAccessory);
         }
-        if (device.device_type === 'Dimmer') {
-          this.dimmers[device.address] = new DimmerAccessory(this, existingAccessory);
+        if (device.device_type === 'Toggle') {
+          this.toggles[device.address] = new ToggleAccessory(this, existingAccessory);
+        }
+        if (device.device_type === 'SimpleThermostat') {
+          this.simple_thermostats[device.address] = new SimpleThermostatAccessory(this, existingAccessory);
         }
 
         // it is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, eg.:
@@ -218,16 +264,34 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
 
         // create the accessory handler for the newly create accessory
         // this is imported from `platformAccessory.ts`
+        if (device.device_type === 'Dimmer') {
+          this.dimmers[device.address] = new DimmerAccessory(this, accessory);
+        }
         if (device.device_type === 'Switch') {
           this.switches[device.address] = new SwitchAccessory(this, accessory);
         }
-        if (device.device_type === 'Dimmer') {
-          this.dimmers[device.address] = new DimmerAccessory(this, accessory);
+        if (device.device_type === 'Toggle') {
+          this.toggles[device.address] = new ToggleAccessory(this, accessory);
+        }
+        if (device.device_type === 'SimpleThermostat') {
+          this.simple_thermostats[device.address] = new SimpleThermostatAccessory(this, accessory);
         }
 
         // link the accessory to your platform
         this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
       }
+
+      if (device.device_type === 'SimpleThermostat') {
+        const measurement_matcher = /.*;\s*measurement\s*=\s*([^;]+).*/;
+        const measurement_matched = measurement_matcher.exec(device.address);
+        if (measurement_matched !== null) {
+          let m = measurement_matched[1];
+          m = m.replaceAll(/\s/g, '');
+          this.log.info(device.address, '->', m);
+          this.thermostat_map[m] = device.address;
+        }    
+      }
+
     }
   }
 

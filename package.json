@@ -1,10 +1,12 @@
 {
-  "private": false,
-  "displayName": "Envy Lighting",
   "name": "homebridge-envy-lighting",
-  "version": "1.0.57",
+  "displayName": "Envy Lighting",
+  "type": "module",
+  "version": "1.0.70",
+  "private": false,
   "description": "A short description about what your plugin does.",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/james-envy/homebridge-envy-lighting#readme",
   "repository": {
     "type": "git",
     "url": "git://github.com/james-envy/homebridge-envy-lighting.git"
@@ -12,29 +14,32 @@
   "bugs": {
     "url": "https://github.com/james-envy/homebridge-envy-lighting/issues"
   },
-  "engines": {
-    "node": ">=14.18.1",
-    "homebridge": ">=1.3.5"
-  },
-  "main": "dist/index.js",
-  "scripts": {
-    "lint": "eslint src/**.ts --max-warnings=0",
-    "watch": "npm run build && npm link && nodemon",
-    "build": "rimraf ./dist && tsc",
-    "prepublishOnly": "npm run lint && npm run build"
-  },
   "keywords": [
     "homebridge-plugin"
   ],
+  "main": "dist/index.js",
+  "engines": {
+    "node": "^18.20.4 || ^20.18.0 || ^22.10.0",
+    "homebridge": "^1.8.0 || ^2.0.0-beta.0"
+  },
+  "scripts": {
+    "build": "rimraf ./dist && tsc",
+    "lint": "eslint . --max-warnings=0",
+    "prepublishOnly": "npm run lint && npm run build",
+    "watch": "npm run build && npm link && nodemon"
+  },
+  "dependencies": {
+    "homebridge-lib": "^7.1.4"
+  },
   "devDependencies": {
-    "@types/node": "^16.10.9",
-    "@typescript-eslint/eslint-plugin": "^5.0.0",
-    "@typescript-eslint/parser": "^5.0.0",
-    "eslint": "^8.0.1",
-    "homebridge": "^1.3.5",
-    "nodemon": "^2.0.13",
-    "rimraf": "^3.0.2",
-    "ts-node": "^10.3.0",
-    "typescript": "^4.4.4"
+    "@eslint/js": "^9.21.0",
+    "@types/node": "^22.13.5",
+    "eslint": "^9.21.0",
+    "homebridge": "^2.0.0-beta.0",
+    "nodemon": "^3.1.9",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.1"
   }
 }

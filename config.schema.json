@@ -39,6 +39,18 @@
                   "enum": [
                     "Dimmer"
                   ]
+                },
+                {
+                  "title": "Toggle (not a light)",
+                  "enum": [
+                    "Toggle"
+                  ]
+                },
+                {
+                  "title": "Simple Thermostat (cbus heat only)",
+                  "enum": [
+                    "SimpleThermostat"
+                  ]
                 }
               ]
             },
