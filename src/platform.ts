@@ -23,6 +23,20 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
   socket = new Socket;
   socket_buffer = '';
 
+  pong_timeout = () => {
+    this.socket.destroy();
+  };
+  
+  pong_timer = setTimeout(this.pong_timeout, 15000);
+
+  ping_timeout = () => {
+    this.enqueue('Lighting_controller::Ping()');
+    this.pong_timer = setTimeout(this.pong_timeout, 15000);
+    this.ping_timer = setTimeout(this.ping_timeout, 30000);
+  };
+  
+  ping_timer = setTimeout(this.ping_timeout, 30000);
+
   queue : string[] = [];
   queue_ready = false;
 
@@ -40,6 +54,9 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
   ) {
     this.Service = api.hap.Service;
     this.Characteristic = api.hap.Characteristic;
+
+    clearTimeout(this.ping_timer);
+    clearTimeout(this.pong_timer);
 
     this.log.debug('Finished initializing platform:', this.config.name);
 
@@ -71,6 +88,8 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
   }
 
   on_close() {
+    clearTimeout(this.ping_timer);
+    clearTimeout(this.pong_timer);
     this.log.error('close');
     setTimeout(this.reconnect.bind(this), 10000);
   }
@@ -122,12 +141,20 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
           }
         }
       }
-      const pong_matcher = /Lighting_controller::Ping\(\)/;
-      const pong_matched= pong_matcher.exec(line);
-      if (pong_matched !== null) {
+      
+      const ping_matcher = /Lighting_controller::Ping\(\)/;
+      const ping_matched= ping_matcher.exec(line);
+      if (ping_matched !== null) {
         //this.log.error('ping');
         this.enqueue('Lighting_controller::Pong()');
       }
+
+      const pong_matcher = /Lighting_controller::Pong\(\)/;
+      const pong_matched= pong_matcher.exec(line);
+      if (pong_matched !== null) {
+        clearTimeout(this.pong_timer);
+      }
+
       //Measurement(Device+Channel = 0+3, Units = 0, Value = 23.31)
       const measurement_matcher = /Measurement\(Device\+Channel = (.*), Units = (.*), Value = (.*)\)/;
       const measurement_matched = measurement_matcher.exec(line);
@@ -169,6 +196,7 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
   // }
 
   on_ready() {
+    this.ping_timer = setTimeout(this.ping_timeout, 30000);
     this.log.error('ready');
     this.enqueue('Lighting_controller::Configure(Lighting_Address = ' + this.config.lighting_address + ')');
     for (const address in this.dimmers) {

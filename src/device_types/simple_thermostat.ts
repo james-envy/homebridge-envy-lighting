@@ -10,6 +10,7 @@ export class SimpleThermostatAccessory {
     valid_mode: false,
     thermostat: 25.0,
     valid_thermostat: false,
+    timestamp_thermostat: 0,
     setpoint: 25.0,
     valid_setpoint: false,
     
@@ -149,6 +150,7 @@ export class SimpleThermostatAccessory {
     
     this.thermostat_state.thermostat = thermostat;
     this.thermostat_state.valid_thermostat = true;
+    this.thermostat_state.timestamp_thermostat = Date.now();
     
     this.service.updateCharacteristic(this.platform.Characteristic.CurrentTemperature, thermostat);
     
@@ -158,7 +160,7 @@ export class SimpleThermostatAccessory {
   updateOn(power: boolean) {
     this.platform.log.error(this.accessory.context.device.name, 'Update power ->', power);
     
-    if (power && this.thermostat_state.mode !== 'Heat') {
+    /*if (power && this.thermostat_state.mode !== 'Heat') {
       this.setTargetHeatingCoolingState(this.platform.Characteristic.TargetHeatingCoolingState.HEAT);
       this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState,this.platform.Characteristic.TargetHeatingCoolingState.HEAT);
 
@@ -166,7 +168,7 @@ export class SimpleThermostatAccessory {
     if (!power && this.thermostat_state.mode === 'Heat' && this.thermostat_state.power) {
       this.setTargetHeatingCoolingState(this.platform.Characteristic.TargetHeatingCoolingState.OFF);
       this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState,this.platform.Characteristic.TargetHeatingCoolingState.OFF);
-    }
+    }*/
 
     this.thermostat_state.power = power;
     this.thermostat_state.valid_power = true;  
@@ -184,10 +186,19 @@ export class SimpleThermostatAccessory {
     this.platform.log.error(this.accessory.context.device.name, 'power', this.thermostat_state.power);
     this.platform.log.error(this.accessory.context.device.name, 'valid_power', this.thermostat_state.valid_power);
 
+    const power = this.thermostat_state.power;
+    let value = power;
+    
+    if (this.thermostat_state.valid_thermostat) {
+      if (Date.now() < this.thermostat_state.timestamp_thermostat) {
+        this.thermostat_state.valid_thermostat = false;
+      }
+      if (Date.now() > (this.thermostat_state.timestamp_thermostat + 900000)) {
+        this.thermostat_state.valid_thermostat = false;
+      }
+    }
+
     if (this.thermostat_state.valid_mode && this.thermostat_state.valid_thermostat && this.thermostat_state.valid_setpoint) {
-      const power = this.thermostat_state.power;
-      let value = power;
-      
       switch(this.thermostat_state.mode) {
       case 'Heat':
         if (this.thermostat_state.thermostat >= (this.thermostat_state.setpoint + 1.0)) {
@@ -201,16 +212,18 @@ export class SimpleThermostatAccessory {
       default:
         value = false;
       }
-      if ((value !== power) || (!this.thermostat_state.valid_power)) {
-        this.thermostat_state.power = value;
-        this.thermostat_state.valid_power = true;
-        this.platform.log.debug('Switching power to ->', value);
-        this.platform.enqueue('Lighting_controller::Switch' + (value ? 'On' : 'Off') + '(Address1 = '
-        + this.accessory.context.device.address + ')');
+    } else {
+      value = false;
+    }
+    if ((value !== power) || (!this.thermostat_state.valid_power)) {
+      this.thermostat_state.power = value;
+      this.thermostat_state.valid_power = true;
+      this.platform.log.debug('Switching power to ->', value);
+      this.platform.enqueue('Lighting_controller::Switch' + (value ? 'On' : 'Off') + '(Address1 = '
+      + this.accessory.context.device.address + ')');
 
-        const c = value ? this.platform.Characteristic.CurrentHeatingCoolingState.HEAT : this.platform.Characteristic.CurrentHeatingCoolingState.OFF;
-        this.service.updateCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState, c);
-      }
+      const c = value ? this.platform.Characteristic.CurrentHeatingCoolingState.HEAT : this.platform.Characteristic.CurrentHeatingCoolingState.OFF;
+      this.service.updateCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState, c);
     }
   }
 }
